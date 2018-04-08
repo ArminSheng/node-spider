@@ -1,72 +1,40 @@
 'use strict';
 console.log('loading...')
 
-var http = require('http');
-var https = require('https');
-var cheerio = require('cheerio');
 var fs = require('fs');
+var http = require('http')
+const {downloadHtml} = require('./lib/utils.js')
 
 var targetUrl, params, pageNum, startNum, urls = [], HOST, UA, targetPath;
 
-// targetUrl = 'http://www.haha.mx/topic/1/new/';
 HOST = 'www.haha.mx',
-UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
 params = '1',
-startNum = 1,
+startNum = 27,
 targetPath = '/topic/1/new/'
-pageNum = 20;
+pageNum = 10;
 
-function getHtml(url, params) {
-    var pageData = '';
+function getHtml(path) {
+	downloadHtml({targetPath: path, targetHost: HOST, isHttps: true}).then($ => {
+        var html = $(".joke-list-item .joke-main-content a img");
 
-    const options = {
-        host: HOST,
-        path: url + params,
-        'accept': '*/*',
-        headers: {
-            'User-Agent': UA
+     	for (let i = html.length - 1; i >= 0; i--) {
+	         var src = html[i].attribs.src;
+
+	         if (src.indexOf('image.haha.mx') > -1) {
+	            urls.push(src);
+	         }
+	     }
+
+	     // if (params == (pageNum + startNum)) {
+        console.log('HTML GOTCHA !', 'length: ' + urls.length);
+
+        if (urls.length > 0) {
+            downloadImg(urls.shift());
+        } else {
+            console.log('downloaded');
         }
-    }
-
-    const req = https.get(options, function(res) {
-        res.setEncoding('utf8');
-
-        res.on('data', function(data) {
-            pageData += data;
-        });
-
-        res.on('error', function(err) {
-            console.log(err)
-        });
-
-
-        res.on('end', function() {
-            var $ = cheerio.load(pageData);
-
-             var html = $(".joke-list-item .joke-main-content a img");
-             for (let i = html.length - 1; i >= 0; i--) {
-                 
-                 var src = html[i].attribs.src;
-
-                 if (src.indexOf('image.haha.mx') > -1) {
-                    urls.push(src);
-                 }
-             }
-
-             if (params == (pageNum + startNum)) {
-                console.log('HTML GOTCHA !', 'length: ' + urls.length);
-
-                if (urls.length > 0) {
-                    downloadImg(urls.shift());
-                } else {
-                    console.log('downloaded');
-                }
-             }
-        });
-    });
-
-    req.on('error', console.log)
-    return req
+	     // }
+    }, console.log)
 }
 
 function downloadImg(imgurl) {
@@ -104,6 +72,6 @@ function downloadImg(imgurl) {
 init();
 function init() {
     for (var i = startNum; i <= (startNum + pageNum); i++) {
-        getHtml(targetPath, i);
+        getHtml(targetPath + i);
     }
 }
